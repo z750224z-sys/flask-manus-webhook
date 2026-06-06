@@ -28,14 +28,15 @@ def callback():
 
     return 'OK'
 
-# 當收到文字訊息時，呼叫四個 AI 引擎
+# 當收到文字訊息時，逐一呼叫四個 AI 引擎
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_text = event.message.text
 
+    replies = []
+
     # Gemini
     gemini_key = os.getenv("GEMINI_API_KEY")
-    gemini_reply = ""
     if gemini_key:
         try:
             gemini_resp = requests.post(
@@ -44,12 +45,12 @@ def handle_message(event):
                 json={"contents":[{"parts":[{"text":user_text}]}]}
             ).json()
             gemini_reply = gemini_resp.get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
+            replies.append(f"Gemini: {gemini_reply}")
         except Exception as e:
-            gemini_reply = f"Gemini error: {e}"
+            replies.append(f"Gemini error: {e}")
 
     # Claude
     claude_key = os.getenv("CLAUDE_API_KEY")
-    claude_reply = ""
     if claude_key:
         try:
             claude_resp = requests.post(
@@ -58,12 +59,12 @@ def handle_message(event):
                 json={"model":"claude-3-sonnet-20240229","messages":[{"role":"user","content":user_text}]}
             ).json()
             claude_reply = claude_resp.get("content",[{}])[0].get("text","")
+            replies.append(f"Claude: {claude_reply}")
         except Exception as e:
-            claude_reply = f"Claude error: {e}"
+            replies.append(f"Claude error: {e}")
 
     # NVIDIA NIM
     nvidia_key = os.getenv("NVIDIA_API_KEY")
-    nvidia_reply = ""
     if nvidia_key:
         try:
             nvidia_resp = requests.post(
@@ -72,12 +73,12 @@ def handle_message(event):
                 json={"model":"meta/llama-3.1-70b-instruct","messages":[{"role":"user","content":user_text}]}
             ).json()
             nvidia_reply = nvidia_resp.get("choices",[{}])[0].get("message",{}).get("content","")
+            replies.append(f"NVIDIA: {nvidia_reply}")
         except Exception as e:
-            nvidia_reply = f"NVIDIA error: {e}"
+            replies.append(f"NVIDIA error: {e}")
 
     # Manus
     manus_key = os.getenv("MANUS_API_KEY")
-    manus_reply = ""
     if manus_key:
         try:
             manus_resp = requests.post(
@@ -86,11 +87,12 @@ def handle_message(event):
                 json={"model":"manus-1.6","messages":[{"role":"user","content":user_text}]}
             ).json()
             manus_reply = manus_resp.get("choices",[{}])[0].get("message",{}).get("content","")
+            replies.append(f"Manus: {manus_reply}")
         except Exception as e:
-            manus_reply = f"Manus error: {e}"
+            replies.append(f"Manus error: {e}")
 
     # 整合回覆
-    final_reply = f"Gemini: {gemini_reply}\nClaude: {claude_reply}\nNVIDIA: {nvidia_reply}\nManus: {manus_reply}"
+    final_reply = "\n".join(replies)
 
     line_bot_api.reply_message(
         event.reply_token,
