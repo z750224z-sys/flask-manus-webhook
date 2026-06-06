@@ -10,12 +10,10 @@ app = Flask(__name__)
 line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.getenv("LINE_CHANNEL_SECRET"))
 
-# 首頁測試路由
 @app.route("/")
 def home():
     return "LINE Bot Webhook is running!"
 
-# Webhook 路由
 @app.route("/manus-webhook", methods=['POST'])
 def callback():
     signature = request.headers['X-Line-Signature']
@@ -28,11 +26,9 @@ def callback():
 
     return 'OK'
 
-# 當收到文字訊息時，逐一呼叫四個 AI 引擎
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_text = event.message.text
-
     replies = []
 
     # Gemini
@@ -56,7 +52,10 @@ def handle_message(event):
             claude_resp = requests.post(
                 "https://api.anthropic.com/v1/messages",
                 headers={"x-api-key": claude_key, "anthropic-version":"2023-06-01"},
-                json={"model":"claude-3-sonnet-20240229","messages":[{"role":"user","content":user_text}]}
+                json={
+                    "model":"claude-3-sonnet-20240229",
+                    "messages":[{"role":"user","content":[{"type":"text","text":user_text}]}]
+                }
             ).json()
             claude_reply = claude_resp.get("content",[{}])[0].get("text","")
             replies.append(f"Claude: {claude_reply}")
@@ -70,7 +69,13 @@ def handle_message(event):
             nvidia_resp = requests.post(
                 "https://integrate.api.nvidia.com/v1/chat/completions",
                 headers={"Authorization": f"Bearer {nvidia_key}"},
-                json={"model":"meta/llama-3.1-70b-instruct","messages":[{"role":"user","content":user_text}]}
+                json={
+                    "model":"nvidia/llama-3.3-nemotron-super-49b-v1.5",
+                    "messages":[{"role":"user","content":user_text}],
+                    "temperature":0.6,
+                    "top_p":0.95,
+                    "max_tokens":1024
+                }
             ).json()
             nvidia_reply = nvidia_resp.get("choices",[{}])[0].get("message",{}).get("content","")
             replies.append(f"NVIDIA: {nvidia_reply}")
@@ -91,15 +96,12 @@ def handle_message(event):
         except Exception as e:
             replies.append(f"Manus error: {e}")
 
-    # 整合回覆
     final_reply = "\n".join(replies)
-
     line_bot_api.reply_message(
         event.reply_token,
-        TextSendMessage(text=final_reply[:2000]) # LINE 限制 2000 字
+        TextSendMessage(text=final_reply[:2000])
     )
 
-# 測試環境變數是否讀到
 @app.route("/check-env")
 def check_env():
     return {
