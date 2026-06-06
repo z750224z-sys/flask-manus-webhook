@@ -39,7 +39,7 @@ def handle_message(event):
     if gemini_key:
         try:
             gemini_resp = requests.post(
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+                "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent",
                 headers={"Authorization": f"Bearer {gemini_key}"},
                 json={"contents":[{"parts":[{"text":user_text}]}]}
             ).json()
@@ -67,9 +67,9 @@ def handle_message(event):
     if nvidia_key:
         try:
             nvidia_resp = requests.post(
-                "https://api.nvidia.com/v1/nim/completions",
+                "https://integrate.api.nvidia.com/v1/chat/completions",
                 headers={"Authorization": f"Bearer {nvidia_key}"},
-                json={"model":"nvidia/llama-3.1-70b-instruct","messages":[{"role":"user","content":user_text}]}
+                json={"model":"meta/llama-3.1-70b-instruct","messages":[{"role":"user","content":user_text}]}
             ).json()
             nvidia_reply = nvidia_resp.get("choices",[{}])[0].get("message",{}).get("content","")
         except Exception as e:
